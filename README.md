@@ -68,7 +68,7 @@ Prerequisites: Python 3.11 or 3.12, Node.js 20+, npm, and (only for scanned PDFs
    npm run dev
    ```
 
-Open [http://localhost:5173](http://localhost:5173). Vite proxies `/api` to Flask on port 5000.
+Open [http://localhost:5173](http://localhost:5173). Vite proxies `/api` to Flask on port 5001. Port 5001 is used by default because macOS AirPlay Receiver commonly occupies port 5000; it can be changed with `BACKEND_PORT` and the matching target in `frontend/vite.config.ts`.
 
 ## Free AI access and model policy
 
