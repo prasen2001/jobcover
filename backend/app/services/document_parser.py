@@ -25,6 +25,9 @@ def parse_document(path: Path, requested_mode: str | None = None) -> tuple[str, 
             options = PdfPipelineOptions()
             options.do_ocr = mode == "ocr"
             if mode == "ocr":
+                ocr_engine = os.getenv("DOCLING_OCR_ENGINE", "tesseract").lower()
+                if ocr_engine != "tesseract":
+                    raise ValueError("This project permits only the Tesseract OCR engine.")
                 languages = [
                     value.strip()
                     for value in os.getenv("DOCLING_OCR_LANGUAGES", "en").split(",")

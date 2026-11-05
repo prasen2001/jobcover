@@ -9,7 +9,10 @@ requests>=2.32,<3
 beautifulsoup4>=4.12,<5
 langchain>=1.0,<2
 langchain-groq>=1.0,<2
-docling>=2.60,<3
+# Targeted Docling extras intentionally omit RapidOCR/EasyOCR and their dependencies.
+docling-slim[convert-core,format-docx,format-pdf,models-local]>=2.147,<3
+transformers>=4.42,<6
+einops>=0.8,<1
 pydantic>=2.10,<3
 gunicorn>=23,<24
 

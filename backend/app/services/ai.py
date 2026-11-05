@@ -17,7 +17,7 @@ def generate_cover_letter(profile: dict, resume_text: str, job_text: str, compan
     ])
     model = ChatGroq(
         api_key=api_key,
-        model=os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile"),
+        model=os.getenv("GROQ_MODEL", "openai/gpt-oss-120b"),
         temperature=0.35,
         max_retries=2,
     )
