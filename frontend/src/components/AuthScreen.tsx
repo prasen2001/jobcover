@@ -50,21 +50,23 @@ export function AuthScreen({ onAuthenticated }: { onAuthenticated: (token: strin
       </section>
       <section className="auth-panel">
         <div className="auth-card">
-          <div className="auth-heading">
+          <div className="auth-heading auth-transition" key={`heading-${mode}`}>
             <p className="step-label">{mode === 'signup' ? 'START YOUR WORKSPACE' : 'WELCOME BACK'}</p>
             <h2>{mode === 'signup' ? 'Create your account' : 'Sign in to JobCover'}</h2>
             <p>{mode === 'signup' ? 'Your next application starts here.' : 'Pick up where you left off.'}</p>
           </div>
-          <div className="mode-toggle">
+          <div className={`mode-toggle ${mode}`}>
             <button className={mode === 'signup' ? 'active' : ''} onClick={() => setMode('signup')}>Sign up</button>
             <button className={mode === 'login' ? 'active' : ''} onClick={() => setMode('login')}>Sign in</button>
           </div>
           <form onSubmit={submit} className="stack-form">
-            {mode === 'signup' && <label>Full name<input name="fullName" required autoComplete="name" placeholder="Alex Morgan" /></label>}
+            <div className={`signup-field ${mode === 'signup' ? 'visible' : ''}`} aria-hidden={mode !== 'signup'}>
+              <label>Full name<input name="fullName" required={mode === 'signup'} disabled={mode !== 'signup'} autoComplete="name" placeholder="Alex Morgan" /></label>
+            </div>
             <label>Email address<input name="email" type="email" required autoComplete="email" placeholder="alex@example.com" /></label>
             <label>Password<div className="password-field"><input name="password" type={showPassword ? 'text' : 'password'} minLength={8} required autoComplete={mode === 'signup' ? 'new-password' : 'current-password'} placeholder="At least 8 characters" /><button type="button" aria-label="Show password" onClick={() => setShowPassword(!showPassword)}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button></div></label>
             {error && <p className="form-error" role="alert">{error}</p>}
-            <button className="primary-button" disabled={busy}>{busy ? 'One moment…' : mode === 'signup' ? 'Create account' : 'Sign in'} <ArrowRight size={18} /></button>
+            <button className="primary-button" disabled={busy}><span className="auth-transition" key={`submit-${mode}`}>{busy ? 'One moment…' : mode === 'signup' ? 'Create account' : 'Sign in'}</span> <ArrowRight size={18} /></button>
           </form>
           <p className="terms">By continuing, you agree to protect the personal data you upload.</p>
         </div>

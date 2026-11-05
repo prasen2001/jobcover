@@ -26,9 +26,16 @@ h1,h2,h3,.logo { font-family:'Manrope',sans-serif; }
 .auth-card { width:min(100%,440px); }
 .auth-heading h2 { font-size:32px; letter-spacing:-1.2px; margin:10px 0 7px; }
 .auth-heading>p:last-child { color:var(--muted); }
-.mode-toggle { display:grid; grid-template-columns:1fr 1fr; background:#e8e7e1; padding:4px; border-radius:11px; margin:28px 0; }
-.mode-toggle button { border:0; background:transparent; padding:10px; border-radius:8px; color:#6e746f; font-weight:600; }
-.mode-toggle button.active { background:white; color:var(--ink); box-shadow:0 2px 10px #18251e14; }
+.mode-toggle { display:grid; grid-template-columns:1fr 1fr; background:#e8e7e1; padding:4px; border-radius:11px; margin:28px 0; position:relative; }
+.mode-toggle:before { content:''; position:absolute; z-index:0; top:4px; bottom:4px; left:4px; width:calc(50% - 4px); border-radius:8px; background:white; box-shadow:0 2px 10px #18251e14; transition:transform .32s cubic-bezier(.22,1,.36,1); }
+.mode-toggle.login:before { transform:translateX(100%); }
+.mode-toggle button { position:relative; z-index:1; border:0; background:transparent; padding:10px; border-radius:8px; color:#6e746f; font-weight:600; transition:color .25s ease; }
+.mode-toggle button.active { color:var(--ink); }
+.auth-transition { animation:auth-swap .34s cubic-bezier(.22,1,.36,1) both; }
+@keyframes auth-swap { from { opacity:0; transform:translateY(7px); } to { opacity:1; transform:translateY(0); } }
+.signup-field { display:grid; grid-template-rows:0fr; opacity:0; transform:translateY(-5px); transition:grid-template-rows .34s cubic-bezier(.22,1,.36,1),opacity .22s ease,transform .34s cubic-bezier(.22,1,.36,1); }
+.signup-field.visible { grid-template-rows:1fr; opacity:1; transform:translateY(0); }
+.signup-field>label { min-height:0; overflow:hidden; }
 .stack-form { display:flex; flex-direction:column; gap:17px; }
 label { display:flex; flex-direction:column; gap:7px; color:#39433d; font-size:13px; font-weight:600; }
 input,textarea,select { width:100%; border:1px solid #d7d8d1; background:#fffefa; border-radius:9px; padding:12px 13px; color:var(--ink); outline:none; transition:.18s; }
