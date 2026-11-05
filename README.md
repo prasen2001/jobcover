@@ -2,7 +2,7 @@
 
 JobCover is a full-stack application for keeping role-specific resume versions, measuring how well a resume fits a job, and generating an editable cover letter grounded in the user's real profile and resume.
 
-The app uses a React + TypeScript frontend, a Flask API, SQLite for local development, Docling for resume parsing, and LangChain with Groq for cover-letter generation. The default hosted model is OpenAI's `gpt-oss-120b`; no Chinese model or Chinese-maintained AI library is configured.
+The app uses a React + TypeScript frontend, a Flask API, SQLite for local development, Docling for resume parsing, and LangChain for cover-letter generation. Google Gemini 3.8 Flash is the default, with OpenAI's `gpt-oss-120b` on Groq as a selectable alternative; no Chinese model or Chinese-maintained AI library is configured.
 
 ## What is included
 
@@ -48,7 +48,7 @@ Prerequisites: Python 3.11 or 3.12, Node.js 20+, npm, and (only for scanned PDFs
    cp .env.example .env
    ```
 
-   Generate strong values for `SECRET_KEY` and `JWT_SECRET_KEY`. Add a `GROQ_API_KEY` to enable AI generation. Without it, scoring and a template-based cover letter still work.
+   Generate strong values for `SECRET_KEY` and `JWT_SECRET_KEY`. Add a `GOOGLE_API_KEY` from Google AI Studio for Gemini, or a `GROQ_API_KEY` for the Groq alternative. Without a provider key, scoring still works and non-explicit API usage falls back to a local template.
 
 2. Create the Python virtual environment and start Flask:
 
@@ -72,9 +72,9 @@ Open [http://localhost:5173](http://localhost:5173). Vite proxies `/api` to Flas
 
 ## Free AI access and model policy
 
-Create a Groq API key and place it only in the root `.env`. The default `openai/gpt-oss-120b` is an OpenAI open-weight model hosted by Groq. Groq publishes account-level developer rate limits; exact current limits appear in the account's Limits page. The provider or model can be changed through `GROQ_MODEL` without changing application code.
+Create a Gemini API key in Google AI Studio and place it only in the root `.env` as `GOOGLE_API_KEY`. The default `gemini-3.8-flash` model has a Google-documented free tier. Users can select Gemini or `openai/gpt-oss-120b` on Groq when generating a letter. The backend enforces this non-Chinese allowlist rather than accepting arbitrary model identifiers.
 
-The `GROQ_API_KEY` never reaches the browser. Resume content is sent to Groq only when the user clicks **Generate cover letter**. The deterministic score runs locally.
+API keys never reach the browser. Resume content is sent only to the provider selected when the user clicks **Generate cover letter**. The deterministic score runs locally.
 
 ## Docling modes
 

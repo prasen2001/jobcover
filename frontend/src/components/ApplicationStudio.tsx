@@ -10,6 +10,7 @@ export function ApplicationStudio({ resumes }: { resumes: Resume[] }) {
   const [generating, setGenerating] = useState(false)
   const [error, setError] = useState('')
   const [source, setSource] = useState<'text' | 'url'>('text')
+  const [aiModel, setAiModel] = useState('gemini:gemini-3.8-flash')
 
   async function analyze(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setBusy(true); setError(''); setResult(null)
@@ -25,7 +26,11 @@ export function ApplicationStudio({ resumes }: { resumes: Resume[] }) {
     if (!result) return
     setGenerating(true); setError('')
     try {
-      const response = await api<{ application: Application }>(`/applications/${result.id}/cover-letter`, { method: 'POST' })
+      const [provider, model] = aiModel.split(':', 2)
+      const response = await api<{ application: Application }>(`/applications/${result.id}/cover-letter`, {
+        method: 'POST',
+        body: JSON.stringify({ provider, model }),
+      })
       setResult(response.application)
     } catch (caught) { setError(caught instanceof Error ? caught.message : 'Generation failed.') }
     finally { setGenerating(false) }
@@ -42,7 +47,7 @@ export function ApplicationStudio({ resumes }: { resumes: Resume[] }) {
       <div className="dimension-list">{result.metrics.dimensions.map((d) => <div key={d.name}><span>{d.name}<strong>{d.score}</strong></span><div><i style={{ width: `${d.score}%` }} /></div></div>)}</div>
       <div className="suggestions"><h3>Suggested changes</h3>{result.metrics.suggestions.map((s) => <p key={s}><CheckCircle2 size={17} />{s}</p>)}</div>
       <div className="keyword-row"><div><small>MATCHED</small>{result.metrics.matchedKeywords.slice(0, 6).map(k => <span className="keyword good" key={k}>{k}</span>)}</div><div><small>OPPORTUNITIES</small>{result.metrics.missingKeywords.slice(0, 6).map(k => <span className="keyword" key={k}>{k}</span>)}</div></div>
-      {!result.coverLetter ? <button className="primary-button" onClick={generate} disabled={generating}><WandSparkles size={18} />{generating ? 'Writing your letter…' : 'Generate cover letter'}</button> : <div className="letter-result"><div><h3>Your cover letter</h3><button className="text-button" onClick={() => navigator.clipboard.writeText(result.coverLetter)}><Clipboard size={16} /> Copy</button></div><textarea value={result.coverLetter} onChange={(e) => setResult({ ...result, coverLetter: e.target.value })} rows={18} /></div>}
+      {!result.coverLetter ? <div className="generation-controls"><label>AI model<select value={aiModel} onChange={(event) => setAiModel(event.target.value)}><option value="gemini:gemini-3.8-flash">Gemini 3.8 Flash · Google</option><option value="groq:openai/gpt-oss-120b">GPT-OSS 120B · Groq</option></select><small>The matching API key must be present in the root .env file.</small></label><button className="primary-button" onClick={generate} disabled={generating}><WandSparkles size={18} />{generating ? 'Writing your letter…' : 'Generate cover letter'}</button></div> : <div className="letter-result"><div><h3>Your cover letter</h3><button className="text-button" onClick={() => navigator.clipboard.writeText(result.coverLetter)}><Clipboard size={16} /> Copy</button></div><textarea value={result.coverLetter} onChange={(e) => setResult({ ...result, coverLetter: e.target.value })} rows={18} /></div>}
     </>}</aside></div>
   </section>
 }

@@ -51,10 +51,12 @@ def cover_letter(application_id):
     application = Application.query.filter_by(id=application_id, user_id=user_id).first_or_404()
     version = db.session.get(ResumeVersion, application.resume_version_id)
     user = db.session.get(User, user_id)
+    data = request.get_json(silent=True) or {}
     try:
         application.cover_letter = generate_cover_letter(
             user.profile.as_dict(user.email), version.parsed_text, application.job_description,
             application.company_name, application.role_title, application.metrics_json,
+            provider=data.get("provider"), model_name=data.get("model"),
         )
     except Exception as exc:
         return jsonify(error=f"Cover letter generation failed: {exc}"), 502
