@@ -19,13 +19,16 @@ def test_signup_login_and_profile(client):
 
     saved = client.put("/api/profile", headers={"Authorization": f"Bearer {token}"}, json={
         "collegeName": "State University",
-        "degreeName": "B.S. Computer Science",
+        "degreeName": "Bachelor of Science",
+        "programName": "Computer Science",
         "enrollmentYear": 2021,
         "graduationYear": 2025,
         "skills": "Python, Flask, React",
     })
     assert saved.status_code == 200
     assert saved.get_json()["profile"]["collegeName"] == "State University"
+    assert saved.get_json()["profile"]["degreeName"] == "Bachelor of Science"
+    assert saved.get_json()["profile"]["programName"] == "Computer Science"
 
 
 def test_rejects_short_password(client):

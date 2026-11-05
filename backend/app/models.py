@@ -34,6 +34,7 @@ class Profile(db.Model):
     portfolio_url = db.Column(db.String(500), default="")
     college_name = db.Column(db.String(255), default="")
     degree_name = db.Column(db.String(255), default="")
+    program_name = db.Column(db.String(255), default="")
     enrollment_year = db.Column(db.Integer)
     graduation_year = db.Column(db.Integer)
     professional_summary = db.Column(db.Text, default="")
@@ -50,6 +51,7 @@ class Profile(db.Model):
             "portfolioUrl": self.portfolio_url,
             "collegeName": self.college_name,
             "degreeName": self.degree_name,
+            "programName": self.program_name,
             "enrollmentYear": self.enrollment_year,
             "graduationYear": self.graduation_year,
             "professionalSummary": self.professional_summary,

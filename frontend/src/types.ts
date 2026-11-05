@@ -9,6 +9,7 @@ export type Profile = {
   portfolioUrl: string
   collegeName: string
   degreeName: string
+  programName: string
   enrollmentYear: number | null
   graduationYear: number | null
   professionalSummary: string

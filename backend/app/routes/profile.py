@@ -14,6 +14,7 @@ FIELD_MAP = {
     "portfolioUrl": "portfolio_url",
     "collegeName": "college_name",
     "degreeName": "degree_name",
+    "programName": "program_name",
     "enrollmentYear": "enrollment_year",
     "graduationYear": "graduation_year",
     "professionalSummary": "professional_summary",

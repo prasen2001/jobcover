@@ -3,7 +3,7 @@ import { Profile, Resume } from '../types'
 import { View } from './Sidebar'
 
 export function Overview({ name, resumes, profile, setView }: { name: string; resumes: Resume[]; profile: Profile | null; setView: (v: View) => void }) {
-  const profileFields = profile ? [profile.fullName, profile.phone, profile.collegeName, profile.degreeName, profile.professionalSummary, profile.skills] : []
+  const profileFields = profile ? [profile.fullName, profile.phone, profile.collegeName, profile.degreeName, profile.programName, profile.professionalSummary, profile.skills] : []
   const completeness = Math.round(100 * profileFields.filter(Boolean).length / Math.max(profileFields.length, 1))
   return <section className="page-section overview"><header className="welcome"><p className="eyebrow">GOOD TO SEE YOU</p><h1>Ready for the next one, {name.split(' ')[0] || 'there'}?</h1><p>Build a strong application one deliberate step at a time.</p></header>
     <button className="hero-action" onClick={() => setView('application')}><div><span className="spark-badge"><PenLine /></span><p className="eyebrow">START HERE</p><h2>Analyze a new job</h2><p>Match a resume, find the gaps, and create your letter.</p></div><span className="round-arrow"><ArrowRight /></span></button>

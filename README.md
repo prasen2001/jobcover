@@ -7,7 +7,7 @@ The app uses a React + TypeScript frontend, a Flask API, SQLite for local develo
 ## What is included
 
 - Email/password sign-up and sign-in with hashed passwords and JWT access tokens
-- A profile with contact details, college, degree, enrollment/graduation years, summary, and skills
+- A profile with contact details, college, separate degree and program/major fields, enrollment/graduation years, summary, and skills
 - Resume categories with immutable, numbered versions and parsing notes
 - PDF, DOCX, TXT, and Markdown uploads stored locally with metadata in SQLite
 - Docling standard, Tesseract OCR, and IBM Granite Docling VLM modes

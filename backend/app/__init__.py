@@ -4,6 +4,7 @@ from flask import Flask, jsonify
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import inspect, text
 
 from .config import Config
 
@@ -41,6 +42,18 @@ def create_app(config_object=Config):
 
     with app.app_context():
         db.create_all()
+        _upgrade_local_schema()
 
     return app
+
+
+def _upgrade_local_schema():
+    """Apply small additive upgrades while this local-first app has no migration CLI."""
+    inspector = inspect(db.engine)
+    if "profile" not in inspector.get_table_names():
+        return
+    columns = {column["name"] for column in inspector.get_columns("profile")}
+    if "program_name" not in columns:
+        db.session.execute(text("ALTER TABLE profile ADD COLUMN program_name VARCHAR(255) DEFAULT ''"))
+        db.session.commit()
 
