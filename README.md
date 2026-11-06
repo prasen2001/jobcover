@@ -2,7 +2,7 @@
 
 JobCover is a full-stack application for keeping role-specific resume versions, measuring how well a resume fits a job, and generating an editable cover letter grounded in the user's real profile and resume.
 
-The app uses a React + TypeScript frontend, a Flask API, SQLite for local development, Docling for resume parsing, and LangChain for cover-letter generation. Google Gemini 3.8 Flash is the default, with OpenAI's `gpt-oss-120b` on Groq as a selectable alternative; no Chinese model or Chinese-maintained AI library is configured.
+The app uses a React + TypeScript frontend, a Flask API, SQLite for local development, Docling for resume parsing, and LangChain for cover-letter generation. Google Gemini 3.8 Flash is the default, with local Meta Llama 3.1 8B through Ollama and OpenAI's `gpt-oss-120b` on Groq as selectable alternatives; no Chinese model or Chinese-maintained AI library is configured.
 
 ## What is included
 
@@ -72,9 +72,21 @@ Open [http://localhost:5173](http://localhost:5173). Vite proxies `/api` to Flas
 
 ## Free AI access and model policy
 
-Create a Gemini API key in Google AI Studio and place it only in the root `.env` as `GOOGLE_API_KEY`. The default `gemini-3.8-flash` model has a Google-documented free tier. Users can select Gemini or `openai/gpt-oss-120b` on Groq when generating a letter. The backend enforces this non-Chinese allowlist rather than accepting arbitrary model identifiers.
+Create a Gemini API key in Google AI Studio and place it only in the root `.env` as `GOOGLE_API_KEY`. The default `gemini-3.8-flash` model has a Google-documented free tier. Users can also select local Meta Llama 3.1 8B or `openai/gpt-oss-120b` on Groq. The backend enforces this non-Chinese allowlist rather than accepting arbitrary model identifiers.
 
 API keys never reach the browser. Resume content is sent only to the provider selected when the user clicks **Generate cover letter**. The deterministic score runs locally.
+
+### Local inference with Ollama
+
+Local Llama inference has no per-token API bill or provider request quota. It is not literally unlimited: the model has a context limit, and generation is constrained by local memory, speed, storage, and power. JobCover uses an 8K working context to keep memory predictable even though the model supports a larger maximum.
+
+```bash
+brew install ollama
+brew services start ollama
+ollama pull llama3.1:8b
+```
+
+The quantized model download is approximately 4.9 GB. Once installed, choose **Llama 3.1 8B · Local on this Mac** in the application studio. Resume and job text then stay on the local Ollama service.
 
 ## Docling modes
 

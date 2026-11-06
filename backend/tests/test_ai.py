@@ -1,6 +1,6 @@
 import pytest
 
-from app.services.ai import generate_cover_letter
+from app.services.ai import _ollama_model, generate_cover_letter
 
 
 BASE_ARGS = {
@@ -14,7 +14,7 @@ BASE_ARGS = {
 
 
 def test_rejects_unapproved_provider():
-    with pytest.raises(ValueError, match="gemini or groq"):
+    with pytest.raises(ValueError, match="gemini, groq, or ollama"):
         generate_cover_letter(**BASE_ARGS, provider="untrusted-provider")
 
 
@@ -36,3 +36,9 @@ def test_rejects_unapproved_model(monkeypatch):
             provider="gemini",
             model_name="gemini-unknown",
         )
+
+
+def test_ollama_must_remain_local(monkeypatch):
+    monkeypatch.setenv("OLLAMA_BASE_URL", "https://remote.example.com")
+    with pytest.raises(ValueError, match="local HTTP address"):
+        _ollama_model("llama3.1:8b")
