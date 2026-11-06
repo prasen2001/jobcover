@@ -62,6 +62,10 @@ def test_truthfulness_guardrail_cannot_be_disabled():
     assert validate_guardrails([]) == ["preserve_facts"]
 
 
+def test_readable_spacing_is_preselected_by_default():
+    assert "readable_spacing" in validate_guardrails(None)
+
+
 def test_rejects_new_numeric_claims_from_generated_resume():
     generated = SAFE_SOURCE.replace("Python experience", "Python experience that improved revenue by 42%")
     with pytest.raises(LatexValidationError, match="unsupported number"):

@@ -29,6 +29,7 @@ GUARDRAILS = {
     "no_photos": "Do not include photos, logos, decorative images, or external assets.",
     "concise_bullets": "Use concise accomplishment bullets and retain metrics only when the source already supports them.",
     "job_relevance": "Prioritize truthful experience and skills relevant to the supplied job description.",
+    "readable_spacing": "Keep clear space between sections and bullets. Do not force content onto one page with excessive negative spacing; remove lower-priority content instead.",
 }
 DEFAULT_GUARDRAILS = list(GUARDRAILS)
 

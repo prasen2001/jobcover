@@ -1,5 +1,5 @@
 import { ChangeEvent, useEffect, useMemo, useState } from 'react'
-import { CheckCircle2, Code2, Download, FileUp, RefreshCw, ShieldCheck, Sparkles } from 'lucide-react'
+import { CheckCircle2, Code2, Download, ExternalLink, FileUp, Maximize2, RefreshCw, ShieldCheck, Sparkles } from 'lucide-react'
 import { api } from '../api'
 import { Application } from '../types'
 
@@ -13,6 +13,7 @@ const FALLBACK_GUARDRAILS: Guardrail[] = [
   { id: 'no_photos', label: 'No Photos', description: 'Exclude photos, logos, and external assets.', required: false },
   { id: 'concise_bullets', label: 'Concise Bullets', description: 'Favor direct accomplishment bullets supported by the source.', required: false },
   { id: 'job_relevance', label: 'Job Relevance', description: 'Prioritize truthful evidence related to the target job.', required: false },
+  { id: 'readable_spacing', label: 'Readable Spacing', description: 'Keep breathing room between sections and remove lower-priority content instead of over-compressing it.', required: false },
 ]
 
 export function LatexResumeBuilder() {
@@ -28,6 +29,7 @@ export function LatexResumeBuilder() {
   const [aiModel, setAiModel] = useState('ollama:llama3.1:8b')
   const [busy, setBusy] = useState<'compile' | 'generate' | ''>('')
   const [error, setError] = useState('')
+  const [previewMode, setPreviewMode] = useState<'width' | 'page'>('width')
 
   useEffect(() => {
     void Promise.all([
@@ -51,6 +53,13 @@ export function LatexResumeBuilder() {
     return URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }))
   }, [rendered])
   useEffect(() => () => { if (pdfUrl) URL.revokeObjectURL(pdfUrl) }, [pdfUrl])
+  const previewUrl = pdfUrl
+    ? `${pdfUrl}#page=1&zoom=${previewMode === 'width' ? 'page-width' : 'page-fit'}&navpanes=0`
+    : ''
+  const negativeSpacingCount = useMemo(
+    () => latexCode.match(/\\vspace\*?\{\s*-/g)?.length || 0,
+    [latexCode],
+  )
 
   function chooseApplication(value: string) {
     setApplicationId(value)
@@ -132,6 +141,7 @@ export function LatexResumeBuilder() {
         <article className="builder-card"><div className="builder-heading"><span>1</span><div><h3>Source resume</h3><p>Paste a complete standalone article document or upload UTF-8 LaTeX.</p></div></div>
           <label className="tex-upload"><FileUp size={17} /> Upload .tex<input type="file" accept=".tex,text/x-tex" onChange={uploadTex} /></label>
           <label>LaTeX code<textarea className="code-editor" value={latexCode} onChange={(event) => { setLatexCode(event.target.value); setRendered(null) }} rows={20} spellCheck={false} placeholder={'\\documentclass[10pt]{article}\n...\n\\begin{document}\n...\n\\end{document}'} /></label>
+          {negativeSpacingCount > 3 && <p className="layout-warning"><ShieldCheck size={16} /><span><strong>Tight source spacing detected</strong>This file contains {negativeSpacingCount} negative spacing rules. Direct rendering preserves them. For generated versions, keep <em>Readable Spacing</em> selected so the model trims lower-priority content instead of compressing the page.</span></p>}
           <button className="secondary-button" onClick={compile} disabled={Boolean(busy) || !latexCode.trim()}><Code2 size={17} />{busy === 'compile' ? 'Compiling safely…' : 'Render current LaTeX'}</button>
         </article>
 
@@ -150,8 +160,8 @@ export function LatexResumeBuilder() {
         </article>
       </div>
 
-      <aside className="pdf-preview builder-card"><div className="preview-heading"><div><p className="eyebrow">LIVE OUTPUT</p><h2>{rendered ? `${rendered.pageCount} page${rendered.pageCount === 1 ? '' : 's'}` : 'PDF preview'}</h2></div>{rendered && <div><button className="text-button" onClick={() => download(rendered.latexCode, 'tailored-resume.tex', 'text/x-tex')}><Download size={15} /> .tex</button><button className="text-button" onClick={() => download(Uint8Array.from(atob(rendered.pdfBase64), (character) => character.charCodeAt(0)), 'tailored-resume.pdf', 'application/pdf')}><Download size={15} /> PDF</button></div>}</div>
-        {pdfUrl ? <object data={pdfUrl} type="application/pdf" aria-label="Rendered resume PDF"><a href={pdfUrl} target="_blank" rel="noreferrer">Open the rendered PDF</a></object> : <div className="preview-empty"><RefreshCw size={30} /><h3>No rendered resume yet</h3><p>Render the source or generate a tailored version. Unsafe LaTeX and page-limit violations are rejected before display.</p></div>}
+      <aside className="pdf-preview builder-card"><div className="preview-heading"><div><p className="eyebrow">LIVE OUTPUT</p><h2>{rendered ? `${rendered.pageCount} page${rendered.pageCount === 1 ? '' : 's'}` : 'PDF preview'}</h2></div>{rendered && <div className="preview-downloads"><button className="text-button" onClick={() => download(rendered.latexCode, 'tailored-resume.tex', 'text/x-tex')}><Download size={15} /> .tex</button><button className="text-button" onClick={() => download(Uint8Array.from(atob(rendered.pdfBase64), (character) => character.charCodeAt(0)), 'tailored-resume.pdf', 'application/pdf')}><Download size={15} /> PDF</button></div>}</div>
+        {pdfUrl ? <><div className="preview-toolbar"><div className="preview-fit"><button className={previewMode === 'width' ? 'active' : ''} onClick={() => setPreviewMode('width')}>Fit width</button><button className={previewMode === 'page' ? 'active' : ''} onClick={() => setPreviewMode('page')}>Fit page</button></div><a href={previewUrl} target="_blank" rel="noreferrer"><Maximize2 size={15} /> Open large preview <ExternalLink size={13} /></a></div><object key={previewMode} data={previewUrl} type="application/pdf" aria-label="Rendered resume PDF"><a href={previewUrl} target="_blank" rel="noreferrer">Open the rendered PDF</a></object></> : <div className="preview-empty"><RefreshCw size={30} /><h3>No rendered resume yet</h3><p>Render the source or generate a tailored version. Unsafe LaTeX and page-limit violations are rejected before display.</p></div>}
       </aside>
     </div>
   </section>
