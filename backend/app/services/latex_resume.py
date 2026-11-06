@@ -14,8 +14,9 @@ from .ai import ALLOWED_MODELS, DEFAULT_MODELS, MODEL_ENV_VARS, _ollama_model
 MAX_LATEX_CHARS = 100_000
 MAX_PDF_BYTES = 10 * 1024 * 1024
 ALLOWED_PACKAGES = {
-    "array", "enumitem", "fontenc", "geometry", "helvet", "hyperref", "inputenc",
-    "lmodern", "microtype", "ragged2e", "tabularx", "titlesec", "url", "xcolor",
+    "array", "babel", "color", "enumitem", "fancyhdr", "fontenc", "fullpage", "geometry",
+    "helvet", "hyperref", "iftex", "inputenc", "latexsym", "lmodern", "microtype",
+    "ragged2e", "tabularx", "titlesec", "url", "xcolor",
 }
 FORBIDDEN_COMMANDS = (
     "include", "input", "includegraphics", "openin", "openout", "read", "write",
@@ -52,8 +53,13 @@ def validate_latex_source(source: str, guardrails=None) -> str:
         raise LatexValidationError("A complete document environment is required.")
 
     lowered = re.sub(r"%[^\n]*", "", source).lower()
+    # This standard TeX-distribution file improves PDF copy/paste and ATS extraction.
+    # It is the only input target permitted; arbitrary local/project files remain blocked.
+    command_scan = re.sub(
+        r"\\input\s*\{\s*glyphtounicode(?:\.tex)?\s*\}", "", lowered
+    )
     for command in FORBIDDEN_COMMANDS:
-        if re.search(rf"\\{command}\b", lowered):
+        if re.search(rf"\\{command}\b", command_scan):
             raise LatexValidationError(f"Unsafe LaTeX command \\{command} is not allowed.")
     if re.search(r"\\(?:csname|catcode|newread|newwrite|special)\b", lowered):
         raise LatexValidationError("Low-level file or command primitives are not allowed.")

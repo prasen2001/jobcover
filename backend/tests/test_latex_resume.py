@@ -22,6 +22,22 @@ def test_accepts_safe_standalone_resume():
     assert validate_latex_source(SAFE_SOURCE) == SAFE_SOURCE.strip()
 
 
+def test_allows_standard_glyph_to_unicode_input():
+    source = SAFE_SOURCE.replace(
+        r"\begin{document}",
+        "\\usepackage{iftex}\n\\ifPDFTeX\n"
+        "\\IfFileExists{glyphtounicode.tex}{\\input{glyphtounicode}}{}\n"
+        "\\pdfgentounicode=1\n\\fi\n\\begin{document}",
+    )
+    assert validate_latex_source(source)
+
+
+def test_still_rejects_every_other_input_target():
+    source = SAFE_SOURCE.replace(r"\begin{document}", r"\input{resume-secrets}\begin{document}")
+    with pytest.raises(LatexValidationError, match=r"\\input"):
+        validate_latex_source(source)
+
+
 @pytest.mark.parametrize("command", [r"\input{secret}", r"\write18{curl example.com}", r"\includegraphics{photo}"])
 def test_rejects_latex_file_and_shell_commands(command):
     source = SAFE_SOURCE.replace(r"\begin{document}", rf"\begin{{document}}{command}")
