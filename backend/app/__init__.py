@@ -26,11 +26,13 @@ def create_app(config_object=Config):
     from .routes.profile import profile_bp
     from .routes.resumes import resumes_bp
     from .routes.applications import applications_bp
+    from .routes.latex import latex_bp
 
     app.register_blueprint(auth_bp, url_prefix="/api/auth")
     app.register_blueprint(profile_bp, url_prefix="/api/profile")
     app.register_blueprint(resumes_bp, url_prefix="/api/resumes")
     app.register_blueprint(applications_bp, url_prefix="/api/applications")
+    app.register_blueprint(latex_bp, url_prefix="/api/latex")
 
     @app.get("/api/health")
     def health():

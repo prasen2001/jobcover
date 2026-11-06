@@ -50,6 +50,7 @@ export type Application = {
   roleTitle: string
   jobUrl: string
   metrics: Metrics
+  jobDescription: string
   coverLetter: string
   createdAt: string
 }

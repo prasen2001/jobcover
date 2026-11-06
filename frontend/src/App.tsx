@@ -5,6 +5,7 @@ import { AuthScreen } from './components/AuthScreen'
 import { Overview } from './components/Overview'
 import { ProfileForm } from './components/ProfileForm'
 import { ResumeLibrary } from './components/ResumeLibrary'
+import { LatexResumeBuilder } from './components/LatexResumeBuilder'
 import { Sidebar, View } from './components/Sidebar'
 import { Profile, Resume, User } from './types'
 
@@ -45,6 +46,7 @@ export default function App() {
     {view === 'home' && <Overview name={user.fullName} resumes={resumes} profile={profile} setView={setView} />}
     {view === 'resumes' && <ResumeLibrary resumes={resumes} refresh={refreshResumes} />}
     {view === 'application' && <ApplicationStudio resumes={resumes} />}
+    {view === 'latex' && <LatexResumeBuilder />}
     {view === 'profile' && <ProfileForm profile={profile} onSaved={(next) => { setProfile(next); setUser({ ...user, fullName: next.fullName }) }} />}
   </main></div>
 }

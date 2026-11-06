@@ -1,14 +1,15 @@
-import { FileStack, LayoutDashboard, LogOut, PenLine, UserRound } from 'lucide-react'
+import { CodeXml, FileStack, LayoutDashboard, LogOut, PenLine, UserRound } from 'lucide-react'
 import { User } from '../types'
 import { Logo } from './Logo'
 
-export type View = 'home' | 'resumes' | 'application' | 'profile'
+export type View = 'home' | 'resumes' | 'application' | 'latex' | 'profile'
 
 export function Sidebar({ view, setView, user, onLogout }: { view: View; setView: (view: View) => void; user: User; onLogout: () => void }) {
   const links: { id: View; label: string; icon: typeof LayoutDashboard }[] = [
     { id: 'home', label: 'Overview', icon: LayoutDashboard },
     { id: 'resumes', label: 'My resumes', icon: FileStack },
     { id: 'application', label: 'New application', icon: PenLine },
+    { id: 'latex', label: 'LaTeX builder', icon: CodeXml },
     { id: 'profile', label: 'Profile', icon: UserRound },
   ]
   return (

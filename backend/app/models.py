@@ -128,6 +128,7 @@ class Application(db.Model):
             "roleTitle": self.role_title,
             "jobUrl": self.job_url,
             "metrics": self.metrics_json,
+            "jobDescription": self.job_description,
             "coverLetter": self.cover_letter,
             "createdAt": self.created_at.isoformat(),
         }

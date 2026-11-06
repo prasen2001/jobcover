@@ -15,6 +15,7 @@ The app uses a React + TypeScript frontend, a Flask API, SQLite for local develo
 - Explainable scores for keyword alignment, evidence/impact, clarity, ATS structure, and contact completeness
 - Practical suggested changes and an explicit readiness threshold
 - LangChain cover-letter generation with an editable result
+- A guarded LaTeX resume builder with `.tex` paste/upload, selectable analysis suggestions, AI tailoring, and an embedded PDF preview
 - A deterministic cover-letter fallback when no API key is configured
 - Responsive desktop and mobile UI
 
@@ -40,7 +41,11 @@ jobcover/
 
 ## Local setup
 
-Prerequisites: Python 3.11 or 3.12, Node.js 20+, npm, and (only for scanned PDFs) the Tesseract CLI. Python 3.12 is recommended in `backend/.python-version`.
+Prerequisites: Python 3.11 or 3.12, Node.js 20+, npm, and Tectonic for LaTeX rendering. Tesseract is needed only for scanned resume PDFs. Python 3.12 is recommended in `backend/.python-version`.
+
+```bash
+brew install tectonic
+```
 
 1. Create the one root environment file:
 
@@ -137,6 +142,9 @@ All routes except health and auth require `Authorization: Bearer <token>`.
 | `POST` | `/api/resumes/:id/versions` | Add an immutable version |
 | `POST` | `/api/applications/analyze` | Fetch/paste a job and score the resume |
 | `POST` | `/api/applications/:id/cover-letter` | Generate a grounded letter |
+| `GET` | `/api/latex/options` | Read selectable LaTeX generation guardrails |
+| `POST` | `/api/latex/compile` | Safely compile pasted or uploaded `.tex` source |
+| `POST` | `/api/latex/generate` | Tailor LaTeX to a job, validate it, and return the rendered PDF |
 
 ## Security and production notes
 
@@ -144,6 +152,8 @@ All routes except health and auth require `Authorization: Bearer <token>`.
 - Job-link fetching resolves DNS, rejects private/local IPs, disables redirects, requires HTML, limits response processing, and has a timeout to reduce SSRF risk.
 - Upload extensions and request size are restricted, and filenames are randomized on disk.
 - Resume/application queries always verify the authenticated owner.
+- LaTeX compilation uses an explicit package allowlist, blocks file/shell primitives and external assets, runs without shell escape in a temporary directory, has a 30-second timeout, and validates PDF size and page count.
+- Resume generation treats job text and custom instructions as untrusted data. The truthfulness constraint cannot be disabled, and selected single-page/ATS constraints are checked again after generation.
 - `.env`, uploaded resumes, the database, and virtual environments are ignored by Git.
 
 Before public deployment, use PostgreSQL, add database migrations, store uploads in encrypted object storage, use short-lived tokens plus refresh-token rotation in secure HTTP-only cookies, add email verification/password reset, malware-scan uploads, add rate limiting and audit logs, and run Flask behind HTTPS with a production WSGI server.
