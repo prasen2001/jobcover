@@ -1,4 +1,5 @@
 import base64
+import difflib
 import json
 import os
 import re
@@ -163,6 +164,8 @@ NON-NEGOTIABLE RULES:
 - A suggestion may change emphasis or wording only when the source supports it.
 - Do not add packages beyond the packages already present in the source and the server allowlist.
 - Do not use input/include, images, shell escape, file operations, embedded files, scripts, or external assets.
+- When job relevance is selected, the result must be meaningfully tailored rather than a copy: reorder skills, retain the strongest relevant bullets, remove lower-priority material, and rewrite supported evidence using the job's terminology.
+- Never copy an unsupported requirement from the job into the resume. If the job asks for credentials or experience absent from the source, emphasize adjacent evidence without claiming the missing qualification.
 - Do not emit Markdown fences, commentary, placeholders, or claims about compliance."""),
         ("human", """CANDIDATE PROFILE (reference only):
 {profile}
@@ -231,6 +234,18 @@ def validate_grounded_facts(source: str, generated: str, profile: dict):
             )
 
 
+def validate_meaningful_tailoring(source: str, generated: str, guardrails: list[str]):
+    if "job_relevance" not in guardrails:
+        return
+    original = _content_signature(source)
+    tailored = _content_signature(generated)
+    similarity = difflib.SequenceMatcher(None, original, tailored, autojunk=False).ratio()
+    if similarity > 0.985:
+        raise LatexValidationError(
+            f"The generated resume was {similarity:.0%} identical to the source. Reorder and prune content to emphasize supported job-relevant evidence instead of returning a copy."
+        )
+
+
 def _chat_model(provider, model_name):
     if provider == "ollama":
         return _ollama_model(
@@ -291,6 +306,13 @@ def _fact_text(value: str) -> str:
         "",
         body,
     )
+
+
+def _content_signature(value: str) -> str:
+    body = re.sub(r"%[^\n]*", " ", _document_body(value))
+    body = re.sub(r"\\[A-Za-z@]+\*?(?:\[[^]]*\])?", " ", body)
+    body = re.sub(r"[{}$&\\_^~|]", " ", body)
+    return re.sub(r"\s+", " ", body).strip().lower()
 
 
 def _find_compiler():

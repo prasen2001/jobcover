@@ -13,6 +13,7 @@ from ..services.latex_resume import (
     generate_latex_resume,
     validate_grounded_facts,
     validate_guardrails,
+    validate_meaningful_tailoring,
 )
 
 latex_bp = Blueprint("latex", __name__)
@@ -94,6 +95,7 @@ def generate():
                     compile_error=error,
                 )
                 validate_grounded_facts(base_latex, generated, profile)
+                validate_meaningful_tailoring(base_latex, generated, guardrails)
                 max_pages = 1 if "single_page" in guardrails else 2
                 result = compile_latex(generated, max_pages=max_pages, guardrails=guardrails)
                 return jsonify(result)

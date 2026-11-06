@@ -7,6 +7,7 @@ from app.services.latex_resume import (
     validate_guardrails,
     validate_grounded_facts,
     validate_latex_source,
+    validate_meaningful_tailoring,
 )
 
 
@@ -90,6 +91,19 @@ def test_rejects_new_numeric_claims_from_generated_resume():
 def test_accepts_numbers_already_supported_by_source():
     source = SAFE_SOURCE.replace("Python experience", "Python experience that improved latency by 35%")
     validate_grounded_facts(source, source, {"fullName": "Alex Morgan"})
+
+
+def test_rejects_an_unchanged_resume_when_job_relevance_is_selected():
+    with pytest.raises(LatexValidationError, match="identical to the source"):
+        validate_meaningful_tailoring(SAFE_SOURCE, SAFE_SOURCE, ["job_relevance"])
+
+
+def test_accepts_a_meaningfully_tailored_resume():
+    tailored = SAFE_SOURCE.replace(
+        "Software engineer with Python experience.",
+        "Python engineer who builds reliable APIs and distributed services.",
+    )
+    validate_meaningful_tailoring(SAFE_SOURCE, tailored, ["job_relevance"])
 
 
 def test_extracts_document_from_model_fence():
