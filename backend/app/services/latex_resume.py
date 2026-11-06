@@ -233,16 +233,32 @@ def validate_grounded_facts(source: str, generated: str, profile: dict):
 
 def _chat_model(provider, model_name):
     if provider == "ollama":
-        return _ollama_model(model_name)
+        return _ollama_model(
+            model_name,
+            num_predict=int(os.getenv("OLLAMA_LATEX_MAX_TOKENS", "4096")),
+            num_ctx=int(os.getenv("OLLAMA_LATEX_CONTEXT_LENGTH", "16384")),
+        )
     key_name = "GOOGLE_API_KEY" if provider == "gemini" else "GROQ_API_KEY"
     api_key = os.getenv(key_name, "").strip()
     if not api_key:
         raise LatexValidationError(f"{key_name} is not configured in the root .env file.")
     if provider == "gemini":
         from langchain_google_genai import ChatGoogleGenerativeAI
-        return ChatGoogleGenerativeAI(google_api_key=api_key, model=model_name, temperature=0.2, max_retries=2)
+        return ChatGoogleGenerativeAI(
+            google_api_key=api_key,
+            model=model_name,
+            temperature=0.1,
+            max_output_tokens=4096,
+            max_retries=2,
+        )
     from langchain_groq import ChatGroq
-    return ChatGroq(api_key=api_key, model=model_name, temperature=0.2, max_retries=2)
+    return ChatGroq(
+        api_key=api_key,
+        model=model_name,
+        temperature=0.1,
+        max_tokens=4096,
+        max_retries=2,
+    )
 
 
 def default_model(provider: str) -> str:

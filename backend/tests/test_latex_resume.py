@@ -1,5 +1,6 @@
 import pytest
 
+from app.services import latex_resume
 from app.services.latex_resume import (
     LatexValidationError,
     _extract_latex,
@@ -66,6 +67,20 @@ def test_readable_spacing_is_preselected_by_default():
     assert "readable_spacing" in validate_guardrails(None)
 
 
+def test_local_latex_model_uses_document_sized_context(monkeypatch):
+    captured = {}
+
+    def fake_ollama(model_name, **kwargs):
+        captured.update(model_name=model_name, **kwargs)
+        return object()
+
+    monkeypatch.setattr(latex_resume, "_ollama_model", fake_ollama)
+    monkeypatch.setenv("OLLAMA_LATEX_CONTEXT_LENGTH", "16384")
+    monkeypatch.setenv("OLLAMA_LATEX_MAX_TOKENS", "4096")
+    latex_resume._chat_model("ollama", "llama3.1:8b")
+    assert captured == {"model_name": "llama3.1:8b", "num_ctx": 16384, "num_predict": 4096}
+
+
 def test_rejects_new_numeric_claims_from_generated_resume():
     generated = SAFE_SOURCE.replace("Python experience", "Python experience that improved revenue by 42%")
     with pytest.raises(LatexValidationError, match="unsupported number"):
@@ -128,3 +143,29 @@ def test_generate_route_applies_guardrails_and_returns_render(client, auth_heade
     assert response.get_json()["pageCount"] == 1
     assert "preserve_facts" in captured["guardrails"]
     assert captured["additional_instructions"] == "Keep education."
+
+
+def test_generate_route_retries_an_incomplete_model_document(client, auth_headers, monkeypatch):
+    calls = []
+
+    def generate_once_incomplete(**kwargs):
+        calls.append(kwargs)
+        if len(calls) == 1:
+            raise LatexValidationError("The model did not return a complete LaTeX document.")
+        return SAFE_SOURCE
+
+    monkeypatch.setattr("app.routes.latex.generate_latex_resume", generate_once_incomplete)
+    monkeypatch.setattr(
+        "app.routes.latex.compile_latex",
+        lambda source, **kwargs: {"latexCode": source.strip(), "pdfBase64": "JVBERi0=", "pageCount": 1},
+    )
+    response = client.post("/api/latex/generate", headers=auth_headers, json={
+        "latexCode": SAFE_SOURCE,
+        "jobDescription": "We need a software engineer with Python, Flask, React, testing, API design, clear communication, reliable delivery, and cross-functional collaboration.",
+        "guardrails": ["single_page", "ats_safe"],
+        "provider": "ollama",
+        "model": "llama3.1:8b",
+    })
+    assert response.status_code == 200
+    assert len(calls) == 2
+    assert "complete LaTeX document" in calls[1]["compile_error"]

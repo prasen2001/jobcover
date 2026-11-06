@@ -85,6 +85,8 @@ API keys never reach the browser. Resume content is sent only to the provider se
 
 Local Llama inference has no per-token API bill or provider request quota. It is not literally unlimited: the model has a context limit, and generation is constrained by local memory, speed, storage, and power. JobCover uses an 8K working context to keep memory predictable even though the model supports a larger maximum.
 
+Full LaTeX resume generation uses a separate 16K context and allows up to 4,096 output tokens so the model can return the complete document. These can be adjusted with `OLLAMA_LATEX_CONTEXT_LENGTH` and `OLLAMA_LATEX_MAX_TOKENS` in the root `.env`.
+
 ```bash
 brew install ollama
 brew services start ollama

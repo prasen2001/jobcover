@@ -121,7 +121,7 @@ def _word_chunks(chunks):
         yield buffer
 
 
-def _ollama_model(model_name: str):
+def _ollama_model(model_name: str, *, num_predict: int = 700, num_ctx: int | None = None):
     from langchain_ollama import ChatOllama
 
     base_url = os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434").rstrip("/")
@@ -144,8 +144,8 @@ def _ollama_model(model_name: str):
         base_url=base_url,
         model=model_name,
         temperature=0.35,
-        num_ctx=int(os.getenv("OLLAMA_CONTEXT_LENGTH", "8192")),
-        num_predict=700,
+        num_ctx=num_ctx or int(os.getenv("OLLAMA_CONTEXT_LENGTH", "8192")),
+        num_predict=num_predict,
     )
 
 

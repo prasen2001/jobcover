@@ -80,19 +80,19 @@ def generate():
         generated = ""
         error = ""
         for attempt in range(2):
-            generated = generate_latex_resume(
-                profile=profile,
-                base_latex=base_latex,
-                job_description=job_description,
-                suggestions=selected_suggestions,
-                guardrails=guardrails,
-                additional_instructions=instructions,
-                provider=provider,
-                model_name=model_name,
-                previous_output=generated if attempt else "",
-                compile_error=error,
-            )
             try:
+                generated = generate_latex_resume(
+                    profile=profile,
+                    base_latex=base_latex,
+                    job_description=job_description,
+                    suggestions=selected_suggestions,
+                    guardrails=guardrails,
+                    additional_instructions=instructions,
+                    provider=provider,
+                    model_name=model_name,
+                    previous_output=generated if attempt else "",
+                    compile_error=error,
+                )
                 validate_grounded_facts(base_latex, generated, profile)
                 max_pages = 1 if "single_page" in guardrails else 2
                 result = compile_latex(generated, max_pages=max_pages, guardrails=guardrails)
