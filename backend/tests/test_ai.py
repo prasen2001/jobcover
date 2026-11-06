@@ -1,6 +1,6 @@
 import pytest
 
-from app.services.ai import _ollama_model, generate_cover_letter
+from app.services.ai import _ollama_model, _word_chunks, generate_cover_letter
 
 
 BASE_ARGS = {
@@ -42,3 +42,12 @@ def test_ollama_must_remain_local(monkeypatch):
     monkeypatch.setenv("OLLAMA_BASE_URL", "https://remote.example.com")
     with pytest.raises(ValueError, match="local HTTP address"):
         _ollama_model("llama3.1:8b")
+
+
+def test_word_chunks_preserve_stream_text():
+    source = ["Hello wo", "rld.\nThis ", "streams"]
+
+    chunks = list(_word_chunks(source))
+
+    assert "".join(chunks) == "Hello world.\nThis streams"
+    assert chunks == ["Hello ", "world.\n", "This ", "streams"]

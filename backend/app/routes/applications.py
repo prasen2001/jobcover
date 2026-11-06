@@ -1,9 +1,11 @@
-from flask import Blueprint, jsonify, request
+import json
+
+from flask import Blueprint, Response, jsonify, request, stream_with_context
 from flask_jwt_extended import get_jwt_identity, jwt_required
 
 from .. import db
 from ..models import Application, Resume, ResumeVersion, User
-from ..services.ai import generate_cover_letter
+from ..services.ai import generate_cover_letter, stream_cover_letter
 from ..services.analysis import analyze_resume
 from ..services.job_fetcher import fetch_job_description
 
@@ -62,6 +64,54 @@ def cover_letter(application_id):
         return jsonify(error=f"Cover letter generation failed: {exc}"), 502
     db.session.commit()
     return jsonify(application=application.as_dict())
+
+
+@applications_bp.post("/<int:application_id>/cover-letter/stream")
+@jwt_required()
+def cover_letter_stream(application_id):
+    user_id = int(get_jwt_identity())
+    application = Application.query.filter_by(id=application_id, user_id=user_id).first_or_404()
+    version = db.session.get(ResumeVersion, application.resume_version_id)
+    user = db.session.get(User, user_id)
+    data = request.get_json(silent=True) or {}
+    generation_args = {
+        "profile": user.profile.as_dict(user.email),
+        "resume_text": version.parsed_text,
+        "job_text": application.job_description,
+        "company": application.company_name,
+        "role": application.role_title,
+        "metrics": application.metrics_json,
+        "provider": data.get("provider"),
+        "model_name": data.get("model"),
+    }
+
+    @stream_with_context
+    def events():
+        pieces = []
+        try:
+            for piece in stream_cover_letter(**generation_args):
+                pieces.append(piece)
+                yield _sse_event("token", content=piece)
+            stored_application = db.session.get(Application, application_id)
+            stored_application.cover_letter = "".join(pieces).strip()
+            db.session.commit()
+            yield _sse_event("done")
+        except GeneratorExit:
+            db.session.rollback()
+            raise
+        except Exception as exc:
+            db.session.rollback()
+            yield _sse_event("error", message=f"Cover letter generation failed: {exc}")
+
+    return Response(
+        events(),
+        mimetype="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+def _sse_event(event_type, **payload):
+    return f"data: {json.dumps({'type': event_type, **payload})}\n\n"
 
 
 def _owned_version(version_id, user_id):

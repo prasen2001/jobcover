@@ -1,4 +1,5 @@
 import os
+import re
 from datetime import date
 from urllib.parse import urlparse
 
@@ -33,6 +34,21 @@ def generate_cover_letter(
     provider: str | None = None,
     model_name: str | None = None,
 ) -> str:
+    return "".join(stream_cover_letter(
+        profile, resume_text, job_text, company, role, metrics, provider, model_name,
+    )).strip()
+
+
+def stream_cover_letter(
+    profile: dict,
+    resume_text: str,
+    job_text: str,
+    company: str,
+    role: str,
+    metrics: dict,
+    provider: str | None = None,
+    model_name: str | None = None,
+):
     explicit_provider = provider is not None
     provider = (provider or os.getenv("AI_PROVIDER", "gemini")).strip().lower()
     if provider not in ALLOWED_MODELS:
@@ -51,7 +67,8 @@ def generate_cover_letter(
         if not api_key:
             if explicit_provider:
                 raise ValueError(f"{key_name} is not configured in the root .env file.")
-            return _fallback_letter(profile, company, role, metrics)
+            yield from _word_chunks([_fallback_letter(profile, company, role, metrics)])
+            return
 
     from langchain_core.output_parsers import StrOutputParser
     from langchain_core.prompts import ChatPromptTemplate
@@ -80,14 +97,28 @@ def generate_cover_letter(
     else:
         model = _ollama_model(model_name)
     chain = prompt | model | StrOutputParser()
-    return chain.invoke({
+    chunks = chain.stream({
         "profile": profile,
         "resume": resume_text[:30_000],
         "job": job_text[:30_000],
         "company": company or "the hiring organization",
         "role": role or "this opportunity",
         "metrics": metrics,
-    }).strip()
+    })
+    yield from _word_chunks(chunks)
+
+
+def _word_chunks(chunks):
+    """Turn arbitrary model chunks into display-friendly word chunks without changing text."""
+    buffer = ""
+    for chunk in chunks:
+        buffer += str(chunk)
+        while match := re.search(r"\s+", buffer):
+            end = match.end()
+            yield buffer[:end]
+            buffer = buffer[end:]
+    if buffer:
+        yield buffer
 
 
 def _ollama_model(model_name: str):

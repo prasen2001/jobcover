@@ -47,3 +47,41 @@ def test_requires_owned_resume_version(client, auth_headers):
     })
     assert response.status_code == 400
 
+
+def test_cover_letter_streams_words_and_saves_result(client, auth_headers, monkeypatch):
+    uploaded = client.post(
+        "/api/resumes",
+        headers=auth_headers,
+        data={
+            "name": "Engineering resume",
+            "category": "Engineering",
+            "file": (io.BytesIO(b"Python Flask React experience"), "resume.txt"),
+        },
+        content_type="multipart/form-data",
+    ).get_json()["resume"]
+    version_id = uploaded["versions"][0]["id"]
+    analyzed = client.post("/api/applications/analyze", headers=auth_headers, json={
+        "resumeVersionId": version_id,
+        "companyName": "Acme",
+        "roleTitle": "Engineer",
+        "jobDescription": "We need an engineer with Python, Flask, React, API design, testing, deployment, ownership, communication, and strong collaboration experience.",
+    }).get_json()["application"]
+    monkeypatch.setattr(
+        "app.routes.applications.stream_cover_letter",
+        lambda *args, **kwargs: iter(["Dear ", "Hiring ", "Team"]),
+    )
+
+    response = client.post(
+        f"/api/applications/{analyzed['id']}/cover-letter/stream",
+        headers=auth_headers,
+        json={"provider": "ollama", "model": "llama3.1:8b"},
+    )
+
+    body = response.get_data(as_text=True)
+    assert response.status_code == 200
+    assert response.mimetype == "text/event-stream"
+    assert body.count('"type": "token"') == 3
+    assert '"type": "done"' in body
+    saved = client.get("/api/applications", headers=auth_headers).get_json()["applications"][0]
+    assert saved["coverLetter"] == "Dear Hiring Team"
+

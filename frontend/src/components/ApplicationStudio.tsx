@@ -1,6 +1,6 @@
 import { FormEvent, useMemo, useState } from 'react'
 import { CheckCircle2, Clipboard, ExternalLink, Sparkles, WandSparkles } from 'lucide-react'
-import { api } from '../api'
+import { api, streamApi } from '../api'
 import { Application, Resume } from '../types'
 
 export function ApplicationStudio({ resumes }: { resumes: Resume[] }) {
@@ -29,12 +29,15 @@ export function ApplicationStudio({ resumes }: { resumes: Resume[] }) {
       const separator = aiModel.indexOf(':')
       const provider = aiModel.slice(0, separator)
       const model = aiModel.slice(separator + 1)
-      const response = await api<{ application: Application }>(`/applications/${result.id}/cover-letter`, {
-        method: 'POST',
-        body: JSON.stringify({ provider, model }),
+      let draft = ''
+      await streamApi(`/applications/${result.id}/cover-letter/stream`, { provider, model }, (word) => {
+        draft += word
+        setResult((current) => current ? { ...current, coverLetter: draft } : current)
       })
-      setResult(response.application)
-    } catch (caught) { setError(caught instanceof Error ? caught.message : 'Generation failed.') }
+    } catch (caught) {
+      setResult((current) => current ? { ...current, coverLetter: '' } : current)
+      setError(caught instanceof Error ? caught.message : 'Generation failed.')
+    }
     finally { setGenerating(false) }
   }
 
@@ -49,7 +52,7 @@ export function ApplicationStudio({ resumes }: { resumes: Resume[] }) {
       <div className="dimension-list">{result.metrics.dimensions.map((d) => <div key={d.name}><span>{d.name}<strong>{d.score}</strong></span><div><i style={{ width: `${d.score}%` }} /></div></div>)}</div>
       <div className="suggestions"><h3>Suggested changes</h3>{result.metrics.suggestions.map((s) => <p key={s}><CheckCircle2 size={17} />{s}</p>)}</div>
       <div className="keyword-row"><div><small>MATCHED</small>{result.metrics.matchedKeywords.slice(0, 6).map(k => <span className="keyword good" key={k}>{k}</span>)}</div><div><small>OPPORTUNITIES</small>{result.metrics.missingKeywords.slice(0, 6).map(k => <span className="keyword" key={k}>{k}</span>)}</div></div>
-      {!result.coverLetter ? <div className="generation-controls"><label>AI model<select value={aiModel} onChange={(event) => setAiModel(event.target.value)}><option value="gemini:gemini-3.8-flash">Gemini 3.8 Flash · Google</option><option value="ollama:llama3.1:8b">Llama 3.1 8B · Local on this Mac</option><option value="groq:openai/gpt-oss-120b">GPT-OSS 120B · Groq</option></select><small>Local Llama needs Ollama running; hosted models need their matching API key.</small></label><button className="primary-button" onClick={generate} disabled={generating}><WandSparkles size={18} />{generating ? 'Writing your letter…' : 'Generate cover letter'}</button></div> : <div className="letter-result"><div><h3>Your cover letter</h3><button className="text-button" onClick={() => navigator.clipboard.writeText(result.coverLetter)}><Clipboard size={16} /> Copy</button></div><textarea value={result.coverLetter} onChange={(e) => setResult({ ...result, coverLetter: e.target.value })} rows={18} /></div>}
+      {!result.coverLetter ? <div className="generation-controls"><label>AI model<select value={aiModel} onChange={(event) => setAiModel(event.target.value)}><option value="gemini:gemini-3.8-flash">Gemini 3.8 Flash · Google</option><option value="ollama:llama3.1:8b">Llama 3.1 8B · Local on this Mac</option><option value="groq:openai/gpt-oss-120b">GPT-OSS 120B · Groq</option></select><small>Local Llama needs Ollama running; hosted models need their matching API key.</small></label><button className="primary-button" onClick={generate} disabled={generating}><WandSparkles size={18} />{generating ? 'Starting the model…' : 'Generate cover letter'}</button></div> : <div className="letter-result"><div><h3>{generating ? 'Writing your cover letter…' : 'Your cover letter'}</h3>{!generating && <button className="text-button" onClick={() => navigator.clipboard.writeText(result.coverLetter)}><Clipboard size={16} /> Copy</button>}</div>{generating ? <div className="streaming-letter" aria-live="polite">{result.coverLetter}<span className="typing-cursor" /></div> : <textarea value={result.coverLetter} onChange={(e) => setResult({ ...result, coverLetter: e.target.value })} rows={18} />}</div>}
     </>}</aside></div>
   </section>
 }
