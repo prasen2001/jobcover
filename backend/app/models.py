@@ -16,6 +16,7 @@ class User(db.Model):
     created_at = db.Column(db.DateTime(timezone=True), default=utcnow, nullable=False)
     profile = db.relationship("Profile", backref="user", uselist=False, cascade="all, delete-orphan")
     resumes = db.relationship("Resume", backref="user", cascade="all, delete-orphan")
+    latex_templates = db.relationship("LatexTemplate", backref="user", cascade="all, delete-orphan")
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -106,6 +107,25 @@ class ResumeVersion(db.Model):
             "notes": self.notes,
             "createdAt": self.created_at.isoformat(),
             "textPreview": self.parsed_text[:220],
+        }
+
+
+class LatexTemplate(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    name = db.Column(db.String(160), nullable=False)
+    latex_code = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime(timezone=True), default=utcnow, onupdate=utcnow, nullable=False)
+    __table_args__ = (db.UniqueConstraint("user_id", "name", name="uq_latex_template_user_name"),)
+
+    def as_dict(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "latexCode": self.latex_code,
+            "createdAt": self.created_at.isoformat(),
+            "updatedAt": self.updated_at.isoformat(),
         }
 
 

@@ -4,7 +4,7 @@ from flask import Blueprint, current_app, jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
 
 from .. import db
-from ..models import Application, User
+from ..models import Application, LatexTemplate, User
 from ..services.latex_resume import (
     DEFAULT_GUARDRAILS,
     DEFAULT_TAILORING_MODE,
@@ -17,11 +17,78 @@ from ..services.latex_resume import (
     generate_latex_resume,
     validate_grounded_facts,
     validate_guardrails,
+    validate_latex_source,
     validate_meaningful_tailoring,
     validate_tailoring_mode,
 )
 
 latex_bp = Blueprint("latex", __name__)
+MAX_TEMPLATE_SOURCE_LENGTH = 100_000
+
+
+@latex_bp.get("/templates")
+@jwt_required()
+def list_templates():
+    user_id = int(get_jwt_identity())
+    templates = (
+        LatexTemplate.query.filter_by(user_id=user_id)
+        .order_by(LatexTemplate.updated_at.desc())
+        .all()
+    )
+    return jsonify(templates=[template.as_dict() for template in templates])
+
+
+@latex_bp.post("/templates")
+@jwt_required()
+def create_template():
+    user_id = int(get_jwt_identity())
+    data = request.get_json(silent=True) or {}
+    try:
+        name, latex_code = _template_payload(data)
+        if LatexTemplate.query.filter_by(user_id=user_id, name=name).first():
+            raise LatexValidationError("A LaTeX template with this name already exists.")
+        template = LatexTemplate(user_id=user_id, name=name, latex_code=latex_code)
+        db.session.add(template)
+        db.session.commit()
+        current_app.logger.info("latex.template.created user_id=%s template_id=%s", user_id, template.id)
+        return jsonify(template=template.as_dict()), 201
+    except LatexValidationError as exc:
+        return jsonify(error=str(exc)), 400
+
+
+@latex_bp.put("/templates/<int:template_id>")
+@jwt_required()
+def update_template(template_id):
+    user_id = int(get_jwt_identity())
+    template = LatexTemplate.query.filter_by(id=template_id, user_id=user_id).first_or_404()
+    data = request.get_json(silent=True) or {}
+    try:
+        name, latex_code = _template_payload(data)
+        duplicate = LatexTemplate.query.filter(
+            LatexTemplate.user_id == user_id,
+            LatexTemplate.name == name,
+            LatexTemplate.id != template.id,
+        ).first()
+        if duplicate:
+            raise LatexValidationError("A LaTeX template with this name already exists.")
+        template.name = name
+        template.latex_code = latex_code
+        db.session.commit()
+        current_app.logger.info("latex.template.updated user_id=%s template_id=%s", user_id, template.id)
+        return jsonify(template=template.as_dict())
+    except LatexValidationError as exc:
+        return jsonify(error=str(exc)), 400
+
+
+@latex_bp.delete("/templates/<int:template_id>")
+@jwt_required()
+def delete_template(template_id):
+    user_id = int(get_jwt_identity())
+    template = LatexTemplate.query.filter_by(id=template_id, user_id=user_id).first_or_404()
+    db.session.delete(template)
+    db.session.commit()
+    current_app.logger.info("latex.template.deleted user_id=%s template_id=%s", user_id, template_id)
+    return "", 204
 
 
 @latex_bp.get("/options")
@@ -186,6 +253,19 @@ def _uploaded_or_json_source():
             raise LatexValidationError("The .tex file must use UTF-8 text encoding.") from exc
     data = request.get_json(silent=True) or {}
     return str(data.get("latexCode", ""))
+
+
+def _template_payload(data):
+    name = str(data.get("name", "")).strip()
+    latex_code = str(data.get("latexCode", ""))
+    if not name:
+        raise LatexValidationError("Template name is required.")
+    if len(name) > 160:
+        raise LatexValidationError("Template name must be 160 characters or fewer.")
+    if len(latex_code) > MAX_TEMPLATE_SOURCE_LENGTH:
+        raise LatexValidationError("LaTeX template must be 100,000 characters or fewer.")
+    # Saved source must pass the same safety and completeness checks as rendered source.
+    return name, validate_latex_source(latex_code)
 
 
 def _label(value):

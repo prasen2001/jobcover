@@ -142,6 +142,53 @@ def test_compile_route_returns_pdf_payload(client, auth_headers, monkeypatch):
     assert response.get_json()["pageCount"] == 1
 
 
+def test_user_can_create_update_list_and_delete_latex_template(client, auth_headers):
+    created = client.post("/api/latex/templates", headers=auth_headers, json={
+        "name": "Backend resume",
+        "latexCode": SAFE_SOURCE,
+    })
+    assert created.status_code == 201
+    template_id = created.get_json()["template"]["id"]
+
+    listed = client.get("/api/latex/templates", headers=auth_headers)
+    assert listed.status_code == 200
+    assert listed.get_json()["templates"][0]["latexCode"] == SAFE_SOURCE.strip()
+
+    updated_source = SAFE_SOURCE.replace("Python experience", "Python and Flask experience")
+    updated = client.put(f"/api/latex/templates/{template_id}", headers=auth_headers, json={
+        "name": "Backend resume v2",
+        "latexCode": updated_source,
+    })
+    assert updated.status_code == 200
+    assert updated.get_json()["template"]["name"] == "Backend resume v2"
+
+    deleted = client.delete(f"/api/latex/templates/{template_id}", headers=auth_headers)
+    assert deleted.status_code == 204
+    assert client.get("/api/latex/templates", headers=auth_headers).get_json()["templates"] == []
+
+
+def test_latex_templates_are_private_and_validate_source(client, auth_headers):
+    invalid = client.post("/api/latex/templates", headers=auth_headers, json={
+        "name": "Unsafe",
+        "latexCode": r"\documentclass{article}\begin{document}\input{secret}\end{document}",
+    })
+    assert invalid.status_code == 400
+
+    created = client.post("/api/latex/templates", headers=auth_headers, json={
+        "name": "Private template",
+        "latexCode": SAFE_SOURCE,
+    })
+    template_id = created.get_json()["template"]["id"]
+    second_signup = client.post("/api/auth/signup", json={
+        "fullName": "Taylor Smith",
+        "email": "taylor@example.com",
+        "password": "correct-horse",
+    })
+    other_headers = {"Authorization": f"Bearer {second_signup.get_json()['accessToken']}"}
+    assert client.get("/api/latex/templates", headers=other_headers).get_json()["templates"] == []
+    assert client.delete(f"/api/latex/templates/{template_id}", headers=other_headers).status_code == 404
+
+
 def test_generate_route_applies_guardrails_and_returns_render(client, auth_headers, monkeypatch):
     captured = {}
 

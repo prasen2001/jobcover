@@ -1,11 +1,12 @@
 import { ChangeEvent, useEffect, useMemo, useState } from 'react'
-import { CheckCircle2, Code2, Download, ExternalLink, FileUp, Maximize2, RefreshCw, ShieldCheck, Sparkles } from 'lucide-react'
+import { CheckCircle2, Code2, Download, ExternalLink, FileUp, Maximize2, RefreshCw, Save, ShieldCheck, Sparkles, Trash2 } from 'lucide-react'
 import { api } from '../api'
 import { Application } from '../types'
 
 type Guardrail = { id: string; label: string; description: string; required: boolean }
 type TailoringMode = { id: 'balanced' | 'maximum_match'; label: string; description: string }
 type RenderedResume = { latexCode: string; pdfBase64: string; pageCount: number }
+type LatexTemplate = { id: number; name: string; latexCode: string; createdAt: string; updatedAt: string }
 
 const FALLBACK_GUARDRAILS: Guardrail[] = [
   { id: 'single_page', label: 'Single Page', description: 'Keep the final resume to exactly one page without shrinking text below 9.5pt.', required: false },
@@ -23,6 +24,11 @@ const FALLBACK_TAILORING_MODES: TailoringMode[] = [
 
 export function LatexResumeBuilder() {
   const [latexCode, setLatexCode] = useState('')
+  const [templates, setTemplates] = useState<LatexTemplate[]>([])
+  const [templateId, setTemplateId] = useState('')
+  const [templateName, setTemplateName] = useState('')
+  const [templateBusy, setTemplateBusy] = useState(false)
+  const [templateMessage, setTemplateMessage] = useState('')
   const [rendered, setRendered] = useState<RenderedResume | null>(null)
   const [applications, setApplications] = useState<Application[]>([])
   const [applicationId, setApplicationId] = useState('')
@@ -42,12 +48,14 @@ export function LatexResumeBuilder() {
     void Promise.all([
       api<{ applications: Application[] }>('/applications'),
       api<{ guardrails: Guardrail[]; defaultGuardrails: string[]; tailoringModes?: TailoringMode[]; defaultTailoringMode?: TailoringMode['id'] }>('/latex/options'),
-    ]).then(([applicationResponse, optionResponse]) => {
+      api<{ templates: LatexTemplate[] }>('/latex/templates'),
+    ]).then(([applicationResponse, optionResponse, templateResponse]) => {
       setApplications(applicationResponse.applications)
       setGuardrailOptions(optionResponse.guardrails)
       setGuardrails(optionResponse.defaultGuardrails)
       setTailoringModes(optionResponse.tailoringModes || FALLBACK_TAILORING_MODES)
       setTailoringMode(optionResponse.defaultTailoringMode || 'maximum_match')
+      setTemplates(templateResponse.templates)
     }).catch(() => undefined)
   }, [])
 
@@ -89,9 +97,60 @@ export function LatexResumeBuilder() {
       return
     }
     const reader = new FileReader()
-    reader.onload = () => { setLatexCode(String(reader.result || '')); setRendered(null); setError('') }
+    reader.onload = () => {
+      setLatexCode(String(reader.result || ''))
+      setTemplateId('')
+      setTemplateName(file.name.replace(/\.tex$/i, ''))
+      setTemplateMessage('Ready to save this upload as a reusable template.')
+      setRendered(null)
+      setError('')
+    }
     reader.onerror = () => setError('The .tex file could not be read.')
     reader.readAsText(file)
+  }
+
+  function chooseTemplate(value: string) {
+    setTemplateId(value)
+    const template = templates.find((item) => String(item.id) === value)
+    if (!template) {
+      setTemplateName('')
+      setTemplateMessage('')
+      return
+    }
+    setTemplateName(template.name)
+    setLatexCode(template.latexCode)
+    setRendered(null)
+    setError('')
+    setTemplateMessage(`Loaded “${template.name}”.`)
+  }
+
+  async function saveTemplate(createNew = false) {
+    setTemplateBusy(true); setError(''); setTemplateMessage('')
+    try {
+      const updating = Boolean(templateId) && !createNew
+      const response = await api<{ template: LatexTemplate }>(updating ? `/latex/templates/${templateId}` : '/latex/templates', {
+        method: updating ? 'PUT' : 'POST',
+        body: JSON.stringify({ name: templateName, latexCode }),
+      })
+      setTemplates((current) => [response.template, ...current.filter((item) => item.id !== response.template.id)])
+      setTemplateId(String(response.template.id))
+      setTemplateName(response.template.name)
+      setTemplateMessage(updating ? 'Template updated.' : 'Template saved and available for future resumes.')
+    } catch (caught) { setError(caught instanceof Error ? caught.message : 'Template could not be saved.') }
+    finally { setTemplateBusy(false) }
+  }
+
+  async function deleteTemplate() {
+    if (!templateId || !window.confirm(`Delete the saved template “${templateName}”?`)) return
+    setTemplateBusy(true); setError(''); setTemplateMessage('')
+    try {
+      await api<void>(`/latex/templates/${templateId}`, { method: 'DELETE' })
+      setTemplates((current) => current.filter((item) => String(item.id) !== templateId))
+      setTemplateId('')
+      setTemplateName('')
+      setTemplateMessage('Template deleted. The current editor content was kept.')
+    } catch (caught) { setError(caught instanceof Error ? caught.message : 'Template could not be deleted.') }
+    finally { setTemplateBusy(false) }
   }
 
   async function compile() {
@@ -149,7 +208,17 @@ export function LatexResumeBuilder() {
     <div className="latex-workspace">
       <div className="latex-controls">
         <article className="builder-card"><div className="builder-heading"><span>1</span><div><h3>Source resume</h3><p>Paste a complete standalone article document or upload UTF-8 LaTeX.</p></div></div>
-          <label className="tex-upload"><FileUp size={17} /> Upload .tex<input type="file" accept=".tex,text/x-tex" onChange={uploadTex} /></label>
+          <div className="template-library">
+            <label>Saved source template<select value={templateId} onChange={(event) => chooseTemplate(event.target.value)}><option value="">New unsaved template</option>{templates.map((template) => <option value={template.id} key={template.id}>{template.name}</option>)}</select></label>
+            <label>Template name<input value={templateName} maxLength={160} onChange={(event) => setTemplateName(event.target.value)} placeholder="e.g. Backend engineer master" /></label>
+            <div className="template-actions">
+              <label className="tex-upload"><FileUp size={17} /> Upload .tex<input type="file" accept=".tex,text/x-tex" onChange={uploadTex} /></label>
+              <button className="template-save" type="button" disabled={templateBusy || !templateName.trim() || !latexCode.trim()} onClick={() => saveTemplate(false)}><Save size={16} />{templateId ? 'Update template' : 'Save template'}</button>
+              {templateId && <button className="template-save secondary" type="button" disabled={templateBusy || !templateName.trim() || !latexCode.trim()} onClick={() => saveTemplate(true)}><Save size={16} /> Save as new</button>}
+              {templateId && <button className="template-delete" type="button" disabled={templateBusy} onClick={deleteTemplate} aria-label="Delete saved template"><Trash2 size={16} /></button>}
+            </div>
+            {templateMessage && <p className="template-message">{templateMessage}</p>}
+          </div>
           <label>LaTeX code<textarea className="code-editor" value={latexCode} onChange={(event) => { setLatexCode(event.target.value); setRendered(null) }} rows={20} spellCheck={false} placeholder={'\\documentclass[10pt]{article}\n...\n\\begin{document}\n...\n\\end{document}'} /></label>
           {negativeSpacingCount > 3 && <p className="layout-warning"><ShieldCheck size={16} /><span><strong>Tight source spacing detected</strong>This file contains {negativeSpacingCount} negative spacing rules. Direct rendering preserves them. For generated versions, keep <em>Readable Spacing</em> selected so the model trims lower-priority content instead of compressing the page.</span></p>}
           <button className="secondary-button" onClick={compile} disabled={Boolean(busy) || !latexCode.trim()}><Code2 size={17} />{busy === 'compile' ? 'Compiling safely…' : 'Render current LaTeX'}</button>

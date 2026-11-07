@@ -15,7 +15,7 @@ The app uses a React + TypeScript frontend, a Flask API, SQLite for local develo
 - Explainable scores for keyword alignment, evidence/impact, clarity, ATS structure, and contact completeness
 - Practical suggested changes and an explicit readiness threshold
 - LangChain cover-letter generation with an editable result
-- A guarded LaTeX resume builder with `.tex` paste/upload, selectable analysis suggestions, AI tailoring, and an embedded PDF preview
+- A guarded LaTeX resume builder with `.tex` paste/upload, reusable per-user source templates, selectable analysis suggestions, AI tailoring, and an embedded PDF preview
 - Balanced and Maximum Match tailoring strategies; Maximum Match prioritizes supported ATS terminology and evidence without fabricating missing qualifications
 - A deterministic cover-letter fallback when no API key is configured
 - Responsive desktop and mobile UI
@@ -155,6 +155,8 @@ All routes except health and auth require `Authorization: Bearer <token>`.
 | `POST` | `/api/resumes/:id/versions` | Add an immutable version |
 | `POST` | `/api/applications/analyze` | Fetch/paste a job and score the resume |
 | `POST` | `/api/applications/:id/cover-letter` | Generate a grounded letter |
+| `GET`, `POST` | `/api/latex/templates` | List or save reusable LaTeX source templates |
+| `PUT`, `DELETE` | `/api/latex/templates/:id` | Update or delete a saved LaTeX template |
 | `GET` | `/api/latex/options` | Read selectable LaTeX generation guardrails |
 | `POST` | `/api/latex/compile` | Safely compile pasted or uploaded `.tex` source |
 | `POST` | `/api/latex/generate` | Tailor LaTeX to a job, validate it, and return the rendered PDF |
