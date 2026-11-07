@@ -20,6 +20,8 @@ def app(tmp_path):
         MAX_CONTENT_LENGTH = 2 * 1024 * 1024
         CORS_ORIGINS = ["http://localhost:5173"]
         JWT_ACCESS_TOKEN_EXPIRES = 3600
+        LOG_FILE = str(tmp_path / "jobcover.log")
+        LOG_LEVEL = "INFO"
 
     application = create_app(TestConfig)
     yield application

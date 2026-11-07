@@ -130,6 +130,16 @@ npm run lint
 
 The backend tests cover auth, profile persistence, ownership checks, resume versioning, and explainable analysis output.
 
+## Backend logs
+
+Flask writes structured request and LaTeX-generation logs to both the backend terminal and `backend/logs/jobcover.log`. Log entries include a request ID, provider/model, generation attempt, input/output character counts, validation or compilation failures, page count, and duration. Resume text, job-description text, passwords, tokens, and API keys are not logged.
+
+```bash
+tail -f backend/logs/jobcover.log
+```
+
+The file rotates at 5 MB and keeps three backups by default. Configure this with `LOG_LEVEL`, `LOG_FILE`, `LOG_MAX_BYTES`, and `LOG_BACKUP_COUNT` in the root `.env`.
+
 ## API overview
 
 All routes except health and auth require `Authorization: Bearer <token>`.

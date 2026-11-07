@@ -3,6 +3,7 @@
 backend/.venv/
 backend/instance/
 backend/uploads/
+backend/logs/
 backend/__pycache__/
 backend/**/__pycache__/
 backend/.pytest_cache/

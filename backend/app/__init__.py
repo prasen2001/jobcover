@@ -7,6 +7,7 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import inspect, text
 
 from .config import Config
+from .logging_config import configure_logging
 
 db = SQLAlchemy()
 jwt = JWTManager()
@@ -17,6 +18,7 @@ def create_app(config_object=Config):
     app.config.from_object(config_object)
     Path(app.instance_path).mkdir(parents=True, exist_ok=True)
     Path(app.config["UPLOAD_FOLDER"]).mkdir(parents=True, exist_ok=True)
+    configure_logging(app)
 
     db.init_app(app)
     jwt.init_app(app)
