@@ -7,7 +7,9 @@ from .. import db
 from ..models import Application, User
 from ..services.latex_resume import (
     DEFAULT_GUARDRAILS,
+    DEFAULT_TAILORING_MODE,
     GUARDRAILS,
+    TAILORING_MODES,
     LatexCompileError,
     LatexValidationError,
     compile_latex,
@@ -16,6 +18,7 @@ from ..services.latex_resume import (
     validate_grounded_facts,
     validate_guardrails,
     validate_meaningful_tailoring,
+    validate_tailoring_mode,
 )
 
 latex_bp = Blueprint("latex", __name__)
@@ -30,6 +33,11 @@ def options():
             for key, description in GUARDRAILS.items()
         ],
         defaultGuardrails=DEFAULT_GUARDRAILS,
+        tailoringModes=[
+            {"id": key, "label": value["label"], "description": value["description"]}
+            for key, value in TAILORING_MODES.items()
+        ],
+        defaultTailoringMode=DEFAULT_TAILORING_MODE,
     )
 
 
@@ -65,6 +73,7 @@ def generate():
     try:
         base_latex = str(data.get("latexCode", ""))
         guardrails = validate_guardrails(data.get("guardrails"))
+        tailoring_mode = validate_tailoring_mode(data.get("tailoringMode"))
         instructions = str(data.get("additionalInstructions", "")).strip()
         if len(instructions) > 2_000:
             raise LatexValidationError("Additional instructions must be 2,000 characters or fewer.")
@@ -90,10 +99,11 @@ def generate():
         provider = str(data.get("provider") or "gemini").strip().lower()
         model_name = str(data.get("model") or default_model(provider)).strip()
         current_app.logger.info(
-            "latex.generate.start user_id=%s provider=%s model=%s source_chars=%s job_chars=%s suggestions=%s guardrails=%s",
+            "latex.generate.start user_id=%s provider=%s model=%s tailoring_mode=%s source_chars=%s job_chars=%s suggestions=%s guardrails=%s",
             user_id,
             provider,
             model_name,
+            tailoring_mode,
             len(base_latex),
             len(job_description),
             len(selected_suggestions),
@@ -118,6 +128,7 @@ def generate():
                     model_name=model_name,
                     previous_output=generated if attempt else "",
                     compile_error=error,
+                    tailoring_mode=tailoring_mode,
                 )
                 current_app.logger.info(
                     "latex.generate.model_complete attempt=%s output_chars=%s complete_document=%s duration_ms=%.1f",
@@ -127,7 +138,7 @@ def generate():
                     (time.perf_counter() - attempt_started_at) * 1000,
                 )
                 validate_grounded_facts(base_latex, generated, profile)
-                validate_meaningful_tailoring(base_latex, generated, guardrails)
+                validate_meaningful_tailoring(base_latex, generated, guardrails, tailoring_mode)
                 max_pages = 1 if "single_page" in guardrails else 2
                 result = compile_latex(generated, max_pages=max_pages, guardrails=guardrails)
                 current_app.logger.info(

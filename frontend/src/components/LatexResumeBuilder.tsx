@@ -4,6 +4,7 @@ import { api } from '../api'
 import { Application } from '../types'
 
 type Guardrail = { id: string; label: string; description: string; required: boolean }
+type TailoringMode = { id: 'balanced' | 'maximum_match'; label: string; description: string }
 type RenderedResume = { latexCode: string; pdfBase64: string; pageCount: number }
 
 const FALLBACK_GUARDRAILS: Guardrail[] = [
@@ -15,6 +16,10 @@ const FALLBACK_GUARDRAILS: Guardrail[] = [
   { id: 'job_relevance', label: 'Job Relevance', description: 'Prioritize truthful evidence related to the target job.', required: false },
   { id: 'readable_spacing', label: 'Readable Spacing', description: 'Keep breathing room between sections and remove lower-priority content instead of over-compressing it.', required: false },
 ]
+const FALLBACK_TAILORING_MODES: TailoringMode[] = [
+  { id: 'balanced', label: 'Balanced tailoring', description: 'Improve relevance while preserving more of the source structure and general-purpose experience.' },
+  { id: 'maximum_match', label: 'Maximum match', description: 'Aggressively prioritize supported ATS keywords and the strongest evidence for this specific role.' },
+]
 
 export function LatexResumeBuilder() {
   const [latexCode, setLatexCode] = useState('')
@@ -24,6 +29,8 @@ export function LatexResumeBuilder() {
   const [jobDescription, setJobDescription] = useState('')
   const [guardrailOptions, setGuardrailOptions] = useState<Guardrail[]>(FALLBACK_GUARDRAILS)
   const [guardrails, setGuardrails] = useState<string[]>(FALLBACK_GUARDRAILS.map((item) => item.id))
+  const [tailoringModes, setTailoringModes] = useState<TailoringMode[]>(FALLBACK_TAILORING_MODES)
+  const [tailoringMode, setTailoringMode] = useState<TailoringMode['id']>('maximum_match')
   const [selectedSuggestions, setSelectedSuggestions] = useState<string[]>([])
   const [instructions, setInstructions] = useState('')
   const [aiModel, setAiModel] = useState('ollama:llama3.1:8b')
@@ -34,11 +41,13 @@ export function LatexResumeBuilder() {
   useEffect(() => {
     void Promise.all([
       api<{ applications: Application[] }>('/applications'),
-      api<{ guardrails: Guardrail[]; defaultGuardrails: string[] }>('/latex/options'),
+      api<{ guardrails: Guardrail[]; defaultGuardrails: string[]; tailoringModes?: TailoringMode[]; defaultTailoringMode?: TailoringMode['id'] }>('/latex/options'),
     ]).then(([applicationResponse, optionResponse]) => {
       setApplications(applicationResponse.applications)
       setGuardrailOptions(optionResponse.guardrails)
       setGuardrails(optionResponse.defaultGuardrails)
+      setTailoringModes(optionResponse.tailoringModes || FALLBACK_TAILORING_MODES)
+      setTailoringMode(optionResponse.defaultTailoringMode || 'maximum_match')
     }).catch(() => undefined)
   }, [])
 
@@ -106,6 +115,7 @@ export function LatexResumeBuilder() {
           jobDescription,
           selectedSuggestions,
           guardrails,
+          tailoringMode,
           additionalInstructions: instructions,
           provider: aiModel.slice(0, separator),
           model: aiModel.slice(separator + 1),
@@ -152,11 +162,12 @@ export function LatexResumeBuilder() {
         </article>
 
         <article className="builder-card"><div className="builder-heading"><span>3</span><div><h3>Generation constraints</h3><p>Safety and truthfulness checks are enforced again on the server.</p></div></div>
+          <div className="tailoring-strategy"><small>TAILORING STRATEGY</small><div>{tailoringModes.map((mode) => <button type="button" className={tailoringMode === mode.id ? 'selected' : ''} key={mode.id} onClick={() => setTailoringMode(mode.id)}><span><strong>{mode.label}</strong>{mode.id === 'maximum_match' && <em>Recommended</em>}</span><small>{mode.description}</small></button>)}</div><p>Maximum Match improves alignment but cannot guarantee an interview or selection. Truthfulness remains mandatory.</p></div>
           <div className="guardrail-grid">{guardrailOptions.map((item) => <label className={guardrails.includes(item.id) ? 'selected' : ''} key={item.id}><input type="checkbox" checked={guardrails.includes(item.id)} disabled={item.required} onChange={() => toggleGuardrail(item.id, item.required)} /><ShieldCheck size={17} /><span><strong>{item.label}{item.required ? ' · required' : ''}</strong><small>{item.description}</small></span></label>)}</div>
           <label>Additional instructions<textarea rows={4} maxLength={2000} value={instructions} onChange={(event) => setInstructions(event.target.value)} placeholder="Example: Emphasize backend work, keep the education section, and use concise action verbs. Instructions cannot override safety or truthfulness." /></label>
           <label>AI model<select value={aiModel} onChange={(event) => setAiModel(event.target.value)}><option value="ollama:llama3.1:8b">Llama 3.1 8B · Local on this Mac</option><option value="gemini:gemini-3.8-flash">Gemini 3.8 Flash · Google</option><option value="groq:openai/gpt-oss-120b">GPT-OSS 120B · Groq</option></select></label>
           {error && <p className="form-error">{error}</p>}
-          <button className="primary-button" onClick={generate} disabled={Boolean(busy) || !latexCode.trim() || jobDescription.trim().length < 100}><Sparkles size={18} />{busy === 'generate' ? 'Generating, checking, and rendering…' : 'Generate tailored resume'}</button>
+          <button className="primary-button" onClick={generate} disabled={Boolean(busy) || !latexCode.trim() || jobDescription.trim().length < 100}><Sparkles size={18} />{busy === 'generate' ? 'Generating, checking, and rendering…' : tailoringMode === 'maximum_match' ? 'Create maximum-match resume' : 'Create balanced resume'}</button>
         </article>
       </div>
 

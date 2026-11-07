@@ -33,6 +33,19 @@ GUARDRAILS = {
     "readable_spacing": "Keep clear space between sections and bullets. Do not force content onto one page with excessive negative spacing; remove lower-priority content instead.",
 }
 DEFAULT_GUARDRAILS = list(GUARDRAILS)
+TAILORING_MODES = {
+    "balanced": {
+        "label": "Balanced Tailoring",
+        "description": "Improve relevance while preserving more of the source resume's existing emphasis and structure.",
+        "objective": "Make focused, conservative edits that improve relevance while retaining broadly useful experience.",
+    },
+    "maximum_match": {
+        "label": "Maximum Match",
+        "description": "Aggressively prioritize supported ATS keywords and the strongest evidence for this specific job.",
+        "objective": "Maximize truthful ATS and recruiter alignment. Identify the job's most important requirements, use exact terminology only where the source supports it, reorder skills and sections by relevance, lead bullets with the strongest matching evidence and measurable outcomes, remove low-value material, and preserve readable one-page formatting. Never add a missing qualification.",
+    },
+}
+DEFAULT_TAILORING_MODE = "maximum_match"
 
 
 class LatexValidationError(ValueError):
@@ -144,12 +157,14 @@ def generate_latex_resume(
     model_name: str,
     previous_output: str = "",
     compile_error: str = "",
+    tailoring_mode: str = DEFAULT_TAILORING_MODE,
 ) -> str:
     validate_latex_source(base_latex)
     if provider not in ALLOWED_MODELS:
         raise LatexValidationError("AI provider must be gemini, groq, or ollama.")
     if model_name not in ALLOWED_MODELS[provider]:
         raise LatexValidationError(f"Model {model_name!r} is not allowed for {provider}.")
+    tailoring_mode = validate_tailoring_mode(tailoring_mode)
     model = _chat_model(provider, model_name)
 
     from langchain_core.output_parsers import StrOutputParser
@@ -173,6 +188,9 @@ NON-NEGOTIABLE RULES:
 SELECTED CONSTRAINTS:
 {constraints}
 
+TAILORING OBJECTIVE:
+{objective}
+
 SELECTED ANALYSIS SUGGESTIONS:
 {suggestions}
 
@@ -195,6 +213,7 @@ COMPILER FEEDBACK, if present; fix only the stated formatting/compilation proble
     result = chain.invoke({
         "profile": profile,
         "constraints": "\n".join(f"- {GUARDRAILS[key]}" for key in guardrails),
+        "objective": TAILORING_MODES[tailoring_mode]["objective"],
         "suggestions": "\n".join(f"- {item}" for item in suggestions) or "- None selected",
         "instructions": additional_instructions or "None",
         "job": job_description[:30_000],
@@ -212,6 +231,13 @@ def validate_guardrails(values) -> list[str]:
         raise LatexValidationError("One or more selected resume guardrails are invalid.")
     required = {"preserve_facts"}
     return list(dict.fromkeys([*values, *required]))
+
+
+def validate_tailoring_mode(value) -> str:
+    value = str(value or DEFAULT_TAILORING_MODE).strip().lower()
+    if value not in TAILORING_MODES:
+        raise LatexValidationError("Tailoring mode must be balanced or maximum_match.")
+    return value
 
 
 def validate_grounded_facts(source: str, generated: str, profile: dict):
@@ -234,13 +260,16 @@ def validate_grounded_facts(source: str, generated: str, profile: dict):
             )
 
 
-def validate_meaningful_tailoring(source: str, generated: str, guardrails: list[str]):
+def validate_meaningful_tailoring(
+    source: str, generated: str, guardrails: list[str], tailoring_mode: str = "balanced"
+):
     if "job_relevance" not in guardrails:
         return
     original = _content_signature(source)
     tailored = _content_signature(generated)
     similarity = difflib.SequenceMatcher(None, original, tailored, autojunk=False).ratio()
-    if similarity > 0.985:
+    maximum_similarity = 0.97 if tailoring_mode == "maximum_match" else 0.985
+    if similarity > maximum_similarity:
         raise LatexValidationError(
             f"The generated resume was {similarity:.0%} identical to the source. Reorder and prune content to emphasize supported job-relevant evidence instead of returning a copy."
         )

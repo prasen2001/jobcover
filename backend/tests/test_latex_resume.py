@@ -8,6 +8,7 @@ from app.services.latex_resume import (
     validate_grounded_facts,
     validate_latex_source,
     validate_meaningful_tailoring,
+    validate_tailoring_mode,
 )
 
 
@@ -68,6 +69,12 @@ def test_readable_spacing_is_preselected_by_default():
     assert "readable_spacing" in validate_guardrails(None)
 
 
+def test_maximum_match_is_the_default_tailoring_mode():
+    assert validate_tailoring_mode(None) == "maximum_match"
+    with pytest.raises(LatexValidationError, match="Tailoring mode"):
+        validate_tailoring_mode("guaranteed_hire")
+
+
 def test_local_latex_model_uses_document_sized_context(monkeypatch):
     captured = {}
 
@@ -121,6 +128,8 @@ def test_latex_options_include_required_truthfulness(client, auth_headers):
     facts = next(item for item in response.get_json()["guardrails"] if item["id"] == "preserve_facts")
     assert response.status_code == 200
     assert facts["required"] is True
+    assert response.get_json()["defaultTailoringMode"] == "maximum_match"
+    assert {item["id"] for item in response.get_json()["tailoringModes"]} == {"balanced", "maximum_match"}
 
 
 def test_compile_route_returns_pdf_payload(client, auth_headers, monkeypatch):
@@ -157,6 +166,7 @@ def test_generate_route_applies_guardrails_and_returns_render(client, auth_heade
     assert response.get_json()["pageCount"] == 1
     assert "preserve_facts" in captured["guardrails"]
     assert captured["additional_instructions"] == "Keep education."
+    assert captured["tailoring_mode"] == "maximum_match"
 
 
 def test_generate_route_retries_an_incomplete_model_document(client, auth_headers, monkeypatch):

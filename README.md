@@ -16,6 +16,7 @@ The app uses a React + TypeScript frontend, a Flask API, SQLite for local develo
 - Practical suggested changes and an explicit readiness threshold
 - LangChain cover-letter generation with an editable result
 - A guarded LaTeX resume builder with `.tex` paste/upload, selectable analysis suggestions, AI tailoring, and an embedded PDF preview
+- Balanced and Maximum Match tailoring strategies; Maximum Match prioritizes supported ATS terminology and evidence without fabricating missing qualifications
 - A deterministic cover-letter fallback when no API key is configured
 - Responsive desktop and mobile UI
 
